@@ -41,7 +41,21 @@ class MissingFunctionACYourHashAdminTest extends LessonTest {
   }
 
   @Test
-  void wrongUserHash() throws Exception {
+  void truncatedUserHashIsRejected() throws Exception {
+    var userHash =
+        new DisplayUser(new User("Jerry", "doesnotreallymatter", true), PASSWORD_SALT_ADMIN)
+            .getUserHash();
+    // a prefix of the correct hash must not be accepted
+    mockMvc
+        .perform(
+            MockMvcRequestBuilders.post("/access-control/user-hash-fix")
+                .param("userHash", userHash.substring(0, userHash.length() - 1)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.lessonCompleted", CoreMatchers.is(false)));
+  }
+
+  @Test
+  void wrongUserHash()throws Exception {
     mockMvc
         .perform(
             MockMvcRequestBuilders.post("/access-control/user-hash-fix").param("userHash", "wrong"))
