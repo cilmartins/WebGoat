@@ -8,6 +8,8 @@ import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 import static org.owasp.webgoat.lessons.missingac.MissingFunctionAC.PASSWORD_SALT_ADMIN;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
@@ -44,7 +46,10 @@ public class MissingFunctionACYourHashAdmin implements AssignmentEndpoint {
 
     var user = userRepository.findByUsername("Jerry");
     var displayUser = new DisplayUser(user, PASSWORD_SALT_ADMIN);
-    if (userHash.equals(displayUser.getUserHash())) {
+    // constant-time comparison of the secret hash to avoid timing side channels
+    if (MessageDigest.isEqual(
+        userHash.getBytes(StandardCharsets.UTF_8),
+        displayUser.getUserHash().getBytes(StandardCharsets.UTF_8))) {
       return success(this).feedback("access-control.hash.success").build();
     } else {
       return failed(this).feedback("access-control.hash.close").build();
