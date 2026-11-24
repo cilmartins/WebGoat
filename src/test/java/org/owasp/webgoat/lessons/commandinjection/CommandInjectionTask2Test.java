@@ -36,6 +36,39 @@ class CommandInjectionTask2Test {
   }
 
   @Test
+  void shouldAllowKnownDiagnosticBaseCommand() {
+    assertThat(task.buildCommand("hostname", "")).isEqualTo("hostname");
+    assertThat(task.buildCommand("  WHOAMI ", "")).isEqualTo("whoami");
+  }
+
+  @Test
+  void shouldFallBackToDefaultWhenBaseIsBlankOrNull() {
+    String defaultBase = CommandExecutionService.isWindows() ? "ver" : "uname -a";
+
+    assertThat(task.buildCommand("", "")).isEqualTo(defaultBase);
+    assertThat(task.buildCommand(null, "")).isEqualTo(defaultBase);
+  }
+
+  @Test
+  void shouldNotExecuteArbitraryBaseCommand() {
+    String defaultBase = CommandExecutionService.isWindows() ? "ver" : "uname -a";
+
+    for (String malicious :
+        new String[] {"cat /etc/passwd", "uname -a; id", "hostname && id", "$(id)", "`id`"}) {
+      String command = task.buildCommand(malicious, "");
+
+      assertThat(command).isEqualTo(defaultBase);
+    }
+  }
+
+  @Test
+  void shouldNotRunInjectedBaseCommand() {
+    AttackResult result = task.run(user, "echo INJECTED_BASE_MARKER", "", "");
+
+    assertThat(result.getOutput()).doesNotContain("INJECTED_BASE_MARKER");
+  }
+
+  @Test
   void shouldFailWhenTokenMissing() {
     AttackResult result = task.run(user, "uname -a", "; whoami", "");
 
