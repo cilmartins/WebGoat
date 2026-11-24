@@ -29,6 +29,16 @@ public class CommandInjectionTask2 implements AssignmentEndpoint {
   static final String LEAKED_TOKEN =
       String.format(Locale.ROOT, "WEBGOAT_BUILD_TOKEN=%s", UUID.randomUUID().toString());
 
+  /** Allowlist of diagnostic commands (lookup key -> hardcoded command) accepted as the base. */
+  private static final Map<String, String> ALLOWED_BASE_COMMANDS =
+      Map.of(
+          "uname -a", "uname -a",
+          "ver", "ver",
+          "hostname", "hostname",
+          "whoami", "whoami",
+          "date", "date",
+          "uptime", "uptime");
+
   private final CommandExecutionService commandExecutionService;
   private final CommandInjectionSafetyService safetyService;
 
@@ -67,10 +77,13 @@ public class CommandInjectionTask2 implements AssignmentEndpoint {
   }
 
   String buildCommand(String base, String payload) {
+    // The diagnostic command is resolved against a fixed allowlist: the user-supplied value is only
+    // used as a lookup key, and the command that is executed is always a hardcoded constant.
+    String defaultBase = CommandExecutionService.isWindows() ? "ver" : "uname -a";
     String safeBase =
-        (base == null || base.isBlank())
-            ? (CommandExecutionService.isWindows() ? "ver" : "uname -a")
-            : base;
+        (base == null)
+            ? defaultBase
+            : ALLOWED_BASE_COMMANDS.getOrDefault(base.trim().toLowerCase(Locale.ROOT), defaultBase);
     String userPart = (payload == null) ? "" : payload.trim();
     return safeBase + (userPart.isEmpty() ? "" : " " + userPart);
   }
